@@ -3,6 +3,7 @@ package refactor;
 import java.util.Calendar;
 import java.util.*;
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Lists;
 // import com.google.common.base.Pair;
@@ -55,22 +56,12 @@ public class SettleRefuseRemindJob {
 
     private SettleAuditRepository settleAuditRepository;
 
+    private static final List<Integer> daysToRemind  = Lists.newArrayList(1, 5, 7);
+
     public void handleTask() throws Exception {
-        List<SettleAuditBO> settleAuditBOs = new ArrayList<>();
-
-        TimeRange oneDayAgo = caclTimeRange(1);
-        settleAuditBOs.addAll(
-                settleAuditRepository.getByCreateTimeAndStatus(oneDayAgo.getStart(), oneDayAgo.getEnd(), SettleStatusEnum.REFUSE.getCode()));
-
-        // 5 个自然日
-        TimeRange fiveDaysAgo = caclTimeRange(5);
-        settleAuditBOs.addAll(
-                settleAuditRepository.getByCreateTimeAndStatus(fiveDaysAgo.getStart(), fiveDaysAgo.getEnd(), SettleStatusEnum.REFUSE.getCode()));
-
-        // 7个自然日
-        TimeRange sevenDaysAgo = caclTimeRange(7);
-        settleAuditBOs.addAll(
-                settleAuditRepository.getByCreateTimeAndStatus(sevenDaysAgo.getStart(), sevenDaysAgo.getEnd(), SettleStatusEnum.REFUSE.getCode()));
+        List<SettleAuditBO> settleAuditBOs = daysToRemind.stream().map(this::caclTimeRange).flatMap(day -> {
+                 return settleAuditRepository.getByCreateTimeAndStatus(day.getStart(), day.getEnd(), SettleStatusEnum.REFUSE.getCode()).stream();
+        }).collect(Collectors.toList());
 
         remindForRefused(settleAuditBOs);
     }
