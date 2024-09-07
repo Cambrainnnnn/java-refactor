@@ -2,8 +2,10 @@ package refactor;
 
 import java.util.Calendar;
 import java.util.*;
+import java.util.AbstractMap.SimpleImmutableEntry;
 
 import com.google.common.collect.Lists;
+// import com.google.common.base.Pair;
 import lombok.*;
 
 public class SettleRefuseRemindJob {
@@ -28,6 +30,14 @@ public class SettleRefuseRemindJob {
         }
     }
 
+    @Data
+    @AllArgsConstructor
+    private class TimeRange {
+        Date start;
+        Date end;
+    }
+
+
     private class SettleCustomerRepository {
     }
 
@@ -46,37 +56,36 @@ public class SettleRefuseRemindJob {
     private SettleAuditRepository settleAuditRepository;
 
     public void handleTask() throws Exception {
-        Calendar date = Calendar.getInstance();
-        date.set(Calendar.HOUR_OF_DAY, 0);
-        date.set(Calendar.MINUTE, 0);
-        date.set(Calendar.SECOND, 0);
-        date.set(Calendar.MILLISECOND, 0);
         List<SettleAuditBO> settleAuditBOs = new ArrayList<>();
-        // 2个自然日
-        date.set(Calendar.DATE, date.get(Calendar.DATE) - 2);
-        Date twoDayStart = date.getTime();
-        date.add(Calendar.DATE, 1);
-        Date twoDayEnd = date.getTime();
+
+        TimeRange oneDayAgo = caclTimeRange(1);
         settleAuditBOs.addAll(
-                settleAuditRepository.getByCreateTimeAndStatus(twoDayStart, twoDayEnd, SettleStatusEnum.REFUSE.getCode()));
+                settleAuditRepository.getByCreateTimeAndStatus(oneDayAgo.getStart(), oneDayAgo.getEnd(), SettleStatusEnum.REFUSE.getCode()));
 
         // 5 个自然日
-        date.set(Calendar.DATE, date.get(Calendar.DATE) - 4); // 再往前推4天
-        Date fiveDayStart = date.getTime();
-        date.add(Calendar.DATE, 1);
-        Date fiveDayEnd = date.getTime();
+        TimeRange fiveDaysAgo = caclTimeRange(5);
         settleAuditBOs.addAll(
-                settleAuditRepository.getByCreateTimeAndStatus(fiveDayStart, fiveDayEnd, SettleStatusEnum.REFUSE.getCode()));
+                settleAuditRepository.getByCreateTimeAndStatus(fiveDaysAgo.getStart(), fiveDaysAgo.getEnd(), SettleStatusEnum.REFUSE.getCode()));
 
         // 7个自然日
-        date.set(Calendar.DATE, date.get(Calendar.DATE) - 3);
-        Date sevenDayStart = date.getTime();
-        date.add(Calendar.DATE, 1);
-        Date sevenDayEnd = date.getTime();
+        TimeRange sevenDaysAgo = caclTimeRange(7);
         settleAuditBOs.addAll(
-                settleAuditRepository.getByCreateTimeAndStatus(sevenDayStart, sevenDayEnd, SettleStatusEnum.REFUSE.getCode()));
+                settleAuditRepository.getByCreateTimeAndStatus(sevenDaysAgo.getStart(), sevenDaysAgo.getEnd(), SettleStatusEnum.REFUSE.getCode()));
 
         remindForRefused(settleAuditBOs);
+    }
+
+    private TimeRange caclTimeRange(int dayAgo) {
+        Calendar zeroTiming = Calendar.getInstance();
+        zeroTiming.set(Calendar.HOUR_OF_DAY, 0);
+        zeroTiming.set(Calendar.MINUTE, 0);
+        zeroTiming.set(Calendar.SECOND, 0);
+        zeroTiming.set(Calendar.MILLISECOND, 0);
+        zeroTiming.set(Calendar.DATE, zeroTiming.get(Calendar.DATE) - dayAgo);
+        Date end = zeroTiming.getTime();
+        zeroTiming.add(Calendar.DATE, -1);
+        Date start = zeroTiming.getTime();
+        return new TimeRange(start, end);
     }
 
     private void remindForRefused(List<SettleAuditBO> settleAuditBO) {
