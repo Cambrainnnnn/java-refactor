@@ -59,9 +59,12 @@ public class SettleRefuseRemindJob {
     private static final List<Integer> daysToRemind  = Lists.newArrayList(1, 5, 7);
 
     public void handleTask() throws Exception {
-        List<SettleAuditBO> settleAuditBOs = daysToRemind.stream().map(this::caclTimeRange).flatMap(day -> {
-                 return settleAuditRepository.getByCreateTimeAndStatus(day.getStart(), day.getEnd(), SettleStatusEnum.REFUSE.getCode()).stream();
-        }).collect(Collectors.toList());
+        List<SettleAuditBO> settleAuditBOs = Lists.newArrayList();
+        for (int day : daysToRemind) {
+            TimeRange range = caclTimeRange(day);
+            settleAuditBOs.addAll(settleAuditRepository.getByCreateTimeAndStatus(
+                    range.getStart(), range.getEnd(), SettleStatusEnum.REFUSE.getCode()));
+        }
 
         remindForRefused(settleAuditBOs);
     }
