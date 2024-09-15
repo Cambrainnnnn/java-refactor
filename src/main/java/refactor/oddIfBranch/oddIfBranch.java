@@ -6,6 +6,7 @@ import lombok.Data;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 public class oddIfBranch {
     @Data
@@ -74,29 +75,46 @@ public class oddIfBranch {
         if (mtaPartnerContactsModel != null && mtaPartnerContactsModel.getMtaPartnerContactModelList() != null
                 && mtaPartnerContactsModel.getMtaPartnerContactModelList().size() == 1) {
             phone = mtaPartnerContactService.getPhone(mtaPartnerContactsModel.getMtaPartnerContactModelList().get(0));
+            if (!Strings.isNullOrEmpty(phone)) {
+                return phone;
+            }
         }
 
         // 审核通过的数据在平台
-        if (Strings.isNullOrEmpty(phone)) {
-            // 获取商家手机号
-            Partner partner = pmcRpcPartnerService.getById(partnerId);
-            if (Objects.nonNull(partner)) {
-                if (!partner.getExtendInfo().isEmpty()) {
-                    phone = partner.getExtendInfo().get(PmcExtendAttribute.PARTNER_CERT_CONTACT_PHONE.getKeyInPMC());
-                }
-            }
+        Optional<String> phoneFromPlatform = getPhoneFromPlatform(partnerId);
+        if (phoneFromPlatform.isPresent()) {
+            return phoneFromPlatform.get();
         }
 
         // 未审核的数据在本地
-        if (Strings.isNullOrEmpty(phone)) {
-            // 获取商家手机号
-            Map<String, String> attMap = mtaPartnerExtService.getProcessData(partnerId, PmcExtendAttribute.PARTNER_CERT_CONTACT_PHONE);
-            if (!attMap.isEmpty()) {
-                phone = attMap.get(PmcExtendAttribute.PARTNER_CERT_CONTACT_PHONE.getKeyInPMC());
-            }
+        Optional<String> phoneFromLocalDB = getPhoneFromLocalDB(partnerId);
+        if (phoneFromLocalDB.isPresent()) {
+            return phoneFromLocalDB.get();
         }
 
         return phone;
+    }
+
+    private Optional<String> getPhoneFromPlatform(Integer partnerId) {
+        Partner partner = pmcRpcPartnerService.getById(partnerId);
+        if (Objects.nonNull(partner)) {
+            if (!partner.getExtendInfo().isEmpty()) {
+                String phone = partner.getExtendInfo().get(PmcExtendAttribute.PARTNER_CERT_CONTACT_PHONE.getKeyInPMC());
+                return Optional.ofNullable(phone);
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<String> getPhoneFromLocalDB(Integer partnerId) {
+        // 获取商家手机号
+        Map<String, String> attMap = mtaPartnerExtService.getProcessData(partnerId, PmcExtendAttribute.PARTNER_CERT_CONTACT_PHONE);
+        if (!attMap.isEmpty()) {
+            String phone = attMap.get(PmcExtendAttribute.PARTNER_CERT_CONTACT_PHONE.getKeyInPMC());
+            return Optional.ofNullable(phone);
+        }
+        return Optional.empty();
     }
 }
 
